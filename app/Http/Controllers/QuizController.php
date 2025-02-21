@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Quiz;
@@ -18,7 +19,8 @@ class QuizController extends Controller
     // Show the form for creating a new quiz
     public function create()
     {
-        return view('quizzes.create');
+        $quizzes = Quiz::all(); // Fetch all quizzes for the dropdown
+        return view('quizzes.create', compact('quizzes'));
     }
 
     // Store a newly created quiz
@@ -28,9 +30,34 @@ class QuizController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'duration' => 'required|integer|min:1',
+            'questions' => 'required|array|min:1',
+            'questions.*.question_text' => 'required|string|max:255',
+            'questions.*.options' => 'required|array|min:2',
+            'questions.*.options.*.option_text' => 'required|string|max:255',
+            'questions.*.options.*.is_correct' => 'nullable|boolean',
         ]);
 
-        Quiz::create($request->all());
+        // Create the quiz
+        $quiz = Quiz::create([
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+            'duration' => $request->input('duration'),
+        ]);
+
+        // Create questions and options
+        foreach ($request->input('questions') as $questionData) {
+            $question = $quiz->questions()->create([
+                'question_text' => $questionData['question_text'],
+            ]);
+
+            foreach ($questionData['options'] as $optionData) {
+                $question->options()->create([
+                    'option_text' => $optionData['option_text'],
+                    'is_correct' => $optionData['is_correct'] ?? false,
+                ]);
+            }
+        }
+
         return redirect()->route('quizzes.index')->with('success', 'Quiz created successfully!');
     }
 
